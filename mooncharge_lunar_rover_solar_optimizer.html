@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoonCharge: Lunar Roving Vehicle Dynamic Solar Array Orientation Optimizer</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- MathJax v3 CDN with Bulletproof Config -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #03050a;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    .font-mono-code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background-color: #050811;
+      border: 1px solid #1e293b;
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      text-align: center;
+      color: #38bdf8;
+      overflow-x: auto;
+      margin: 0.6rem 0;
+    }
+    /* Glow & Accent utilities */
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+    }
+    .glow-amber {
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+    }
+    .glow-rose {
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #03050a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#03050a] text-slate-100 selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top System Header -->
+  <header class="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-cyan-600 via-sky-500 to-amber-400 p-0.5 flex items-center justify-center glow-cyan">
+          <div class="w-full h-full bg-[#03050a] rounded-[7px] flex items-center justify-center">
+            <i data-lucide="sun" class="w-5 h-5 text-amber-400"></i>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-lg tracking-wider text-white">MoonCharge</span>
+            <span class="text-xs px-2 py-0.5 rounded-full font-mono-code font-semibold bg-cyan-950 text-cyan-400 border border-cyan-800">NASA SBIR/STTR v4.2</span>
+          </div>
+          <p class="text-xs text-gray-400 font-mono-code">LRV DYNAMIC SOLAR ARRAY ORIENTATION & $(v, E)$ OBSERVER</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-2 bg-gray-900/60 p-1 rounded-xl border border-gray-800">
+        <button id="tabBtnSim" onclick="switchTab('sim')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-1.5 bg-cyan-600 text-white shadow-md">
+          <i data-lucide="gauge" class="w-4 h-4"></i>
+          <span>Live Sim & Telemetry</span>
+        </button>
+        <button id="tabBtnPhysics" onclick="switchTab('physics')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all flex items-center space-x-1.5">
+          <i data-lucide="atom" class="w-4 h-4"></i>
+          <span>Core Physics</span>
+        </button>
+        <button id="tabBtnProposal" onclick="switchTab('proposal')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all flex items-center space-x-1.5">
+          <i data-lucide="file-check-2" class="w-4 h-4"></i>
+          <span>NASA Proposal</span>
+        </button>
+        <button id="tabBtnARR" onclick="switchTab('arr')" class="px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all flex items-center space-x-1.5">
+          <i data-lucide="trending-up" class="w-4 h-4"></i>
+          <span>Civil ARR</span>
+        </button>
+      </nav>
+
+      <!-- System Quick Status -->
+      <div class="hidden lg:flex items-center space-x-3 text-xs font-mono-code">
+        <div class="flex items-center space-x-1.5 bg-gray-900 px-2.5 py-1 rounded-lg border border-gray-800">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-gray-300">DEM MESH: 0.15m VIPER</span>
+        </div>
+        <div class="flex items-center space-x-1.5 bg-gray-900 px-2.5 py-1 rounded-lg border border-gray-800">
+          <i data-lucide="satellite" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span class="text-gray-300">SUN ELEV: <span id="hdrSunElev">2.1°</span></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD                                    -->
+    <!-- ========================================================================= -->
+    <div id="viewSim" class="space-y-6">
+
+      <!-- Top Alert Ribbon & Metrics Strip -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+        <!-- Telemetry Card 1 -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">Rover Velocity ($v$)</span>
+          <div class="flex items-baseline space-x-1 mt-1">
+            <span id="metricVelocity" class="text-2xl font-bold font-mono-code text-cyan-400">0.42</span>
+            <span class="text-xs text-gray-500">m/s</span>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>Nominal: 0.35</span>
+            <span id="metricWheelSlip" class="text-emerald-400">Slip 2.1%</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Card 2 -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">Harvested Power ($E$)</span>
+          <div class="flex items-baseline space-x-1 mt-1">
+            <span id="metricPower" class="text-2xl font-bold font-mono-code text-amber-400">388</span>
+            <span class="text-xs text-gray-500">W</span>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>Req: 210 W</span>
+            <span id="metricMargin" class="text-amber-400">+178 W</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Card 3 -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">Sun Elevation ($\theta_\odot$)</span>
+          <div class="flex items-baseline space-x-1 mt-1">
+            <span id="metricSunAngle" class="text-2xl font-bold font-mono-code text-sky-300">2.25</span>
+            <span class="text-xs text-gray-500">deg</span>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>Azimuth: 142.1°</span>
+            <span class="text-sky-400">South Pole</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Card 4 -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">Array Gimbal ($\beta_g$)</span>
+          <div class="flex items-baseline space-x-1 mt-1">
+            <span id="metricGimbal" class="text-2xl font-bold font-mono-code text-violet-400">87.8</span>
+            <span class="text-xs text-gray-500">deg</span>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>Tracking Rate: 1.2°/s</span>
+            <span class="text-violet-400">Dual-Axis</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Card 5 -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">$\frac{dE}{dt}$ Trajectory Gradient</span>
+          <div class="flex items-baseline space-x-1 mt-1">
+            <span id="metricGradient" class="text-2xl font-bold font-mono-code text-emerald-400">+1.4</span>
+            <span class="text-xs text-gray-500">W/s</span>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>Threshold: -15.0</span>
+            <span id="metricGradStatus" class="text-emerald-400">OPTIMAL</span>
+          </div>
+        </div>
+
+        <!-- Telemetry Card 6: Autonomy State Badge -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex flex-col justify-between" id="badgeContainer">
+          <span class="text-xs text-gray-400 font-mono-code uppercase">Autonomy Mode</span>
+          <div class="mt-1">
+            <div id="autonomyBadge" class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono-code font-bold bg-emerald-950 text-emerald-400 border border-emerald-700">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+              <span>RIDGE-TRACKING</span>
+            </div>
+          </div>
+          <div class="text-[10px] text-gray-400 font-mono-code flex justify-between mt-1">
+            <span>DEM Inversion: 40Hz</span>
+            <span id="divertEta" class="text-cyan-400">Hold Line</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Interactive Display: Lunar Surface & Shadow Rays Simulation Canvas -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left 8 Cols: Terrain Canvas & Visual Raytracing -->
+        <div class="lg:col-span-8 bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-800/80">
+            <div class="flex items-center space-x-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></span>
+              <h2 class="text-sm font-semibold text-white tracking-wide">LUNAR POLAR TERRAIN SHADOW MAP & REAL-TIME LRV KINEMATICS</h2>
+            </div>
+            <div class="flex items-center space-x-2 text-xs font-mono-code">
+              <span class="text-gray-400">DEM Profile: <strong class="text-slate-200">Shackleton Rim West</strong></span>
+              <span class="text-gray-700">|</span>
+              <button onclick="resetSim()" class="text-xs text-gray-400 hover:text-white bg-gray-900 hover:bg-gray-800 px-2.5 py-1 rounded border border-gray-700 transition flex items-center space-x-1">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                <span>Reset Sim</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- The HTML5 Canvas -->
+          <div class="relative w-full h-[360px] sm:h-[400px] mt-3 rounded-xl overflow-hidden bg-[#020408] border border-gray-900">
+            <canvas id="lunarCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- Canvas Inset HUD Overlays -->
+            <div class="absolute top-3 left-3 bg-gray-950/85 backdrop-blur-md border border-gray-800 p-2.5 rounded-lg text-xs font-mono-code space-y-1 pointer-events-none">
+              <div class="text-cyan-400 font-semibold flex items-center space-x-1.5">
+                <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+                <span>VECTOR TRAJECTORY: <span id="hudHeading">18.4° RIDGE</span></span>
+              </div>
+              <div class="text-gray-300">DEM HORIZON INTERCEPT: <span id="hudOcclusion" class="text-emerald-400 font-bold">CLEAR (+4.1m SUNLIT)</span></div>
+              <div class="text-gray-400">ARRAY COPLANAR FLUX: <span id="hudFlux" class="text-amber-300 font-bold">1361 W/m² (100%)</span></div>
+            </div>
+
+            <!-- Dynamic Shadow Alert Ribbon on Canvas -->
+            <div id="canvasAlertRibbon" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-rose-950/90 border border-rose-500/80 text-rose-200 px-4 py-2 rounded-xl text-xs font-mono-code flex items-center space-x-2 shadow-2xl animate-pulse">
+              <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+              <span>WARNING: SHADOW CONE DETECTED. AUTO-DIVERT TO SUNLIT RIDGE ENGAGED ($\Delta \psi = +24^\circ$)</span>
+            </div>
+          </div>
+
+          <!-- Canvas Sub-legend & Controls -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 pt-3 border-t border-gray-900 text-[11px] font-mono-code text-gray-400">
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-1 bg-amber-400 rounded-sm"></span>
+              <span>Ultra-Low Sun Rays ($1.5^\circ\text{–}3^\circ$)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-1 bg-cyan-400 rounded-sm"></span>
+              <span>Autonomy Ridge Trajectory</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-1 bg-rose-500/80 rounded-sm border-dashed"></span>
+              <span>Starvation Crater Shadow</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <span class="w-3 h-1 bg-violet-400 rounded-sm"></span>
+              <span>Solar Mast Normal Vector</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 4 Cols: Phase-Space Diagnostic & Interactive Sliders -->
+        <div class="lg:col-span-4 space-y-4 flex flex-col justify-between">
+          
+          <!-- Primary Diagnostic Chart.js: Velocity (v) vs Energy (E) Phase-Space -->
+          <div class="bg-gray-950 border border-gray-800 rounded-2xl p-4 flex flex-col">
+            <div class="flex items-center justify-between pb-2 border-b border-gray-800">
+              <div class="flex items-center space-x-1.5">
+                <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                <h3 class="text-xs font-semibold text-white tracking-wide font-mono-code">PHASE SPACE: $v$ vs $E$</h3>
+              </div>
+              <span class="text-[10px] font-mono-code text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800">Kinematic Corridor</span>
+            </div>
+            <div class="relative w-full h-[210px] mt-2">
+              <canvas id="phaseSpaceChart"></canvas>
+            </div>
+            <div class="text-[11px] font-mono-code text-gray-400 mt-2 bg-gray-900/50 p-2 rounded-lg border border-gray-800/80 flex justify-between">
+              <span>Boundary: $E_{\text{crit}} = 210\,\text{W}$</span>
+              <span id="phaseStateText" class="text-emerald-400 font-semibold">STATE: NOMINAL CORRIDOR</span>
+            </div>
+          </div>
+
+          <!-- Closed-Loop Interactive Controls Panel -->
+          <div class="bg-gray-950 border border-gray-800 rounded-2xl p-4 space-y-3.5">
+            <div class="flex items-center justify-between border-b border-gray-800 pb-2">
+              <span class="text-xs font-semibold text-white font-mono-code flex items-center space-x-1.5">
+                <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+                <span>CLOSED-LOOP FLIGHT CONTROLS</span>
+              </span>
+              <span class="text-[10px] text-gray-500 font-mono-code">40Hz Observer</span>
+            </div>
+
+            <!-- Slider 1: Rover Velocity Command -->
+            <div>
+              <div class="flex justify-between text-xs font-mono-code text-gray-300 mb-1">
+                <span>Forward Velocity ($v$):</span>
+                <span id="sliderVelVal" class="text-cyan-400 font-bold">0.42 m/s</span>
+              </div>
+              <input id="sliderVelocity" type="range" min="0.05" max="0.95" step="0.01" value="0.42" class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+              <div class="flex justify-between text-[10px] text-gray-500 font-mono-code mt-0.5">
+                <span>0.05 m/s (Creep)</span>
+                <span>0.5 m/s (Nominal)</span>
+                <span>0.95 m/s (Dash)</span>
+              </div>
+            </div>
+
+            <!-- Slider 2: Sun Elevation -->
+            <div>
+              <div class="flex justify-between text-xs font-mono-code text-gray-300 mb-1">
+                <span>Sun Elevation Angle ($\theta_\odot$):</span>
+                <span id="sliderAngleVal" class="text-amber-400 font-bold">2.25°</span>
+              </div>
+              <input id="sliderSunAngle" type="range" min="1.0" max="4.0" step="0.05" value="2.25" class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+              <div class="flex justify-between text-[10px] text-gray-500 font-mono-code mt-0.5">
+                <span>1.0° (Deep Polar Rim)</span>
+                <span>2.5° (Equinox)</span>
+                <span>4.0° (High Peak)</span>
+              </div>
+            </div>
+
+            <!-- Fault Injection & Closed-Loop Toggle Buttons -->
+            <div class="pt-2 grid grid-cols-2 gap-2">
+              <button id="btnInjectShadow" onclick="injectShadowCrater()" class="px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 flex items-center justify-center space-x-1.5 transition">
+                <i data-lucide="cloud-off" class="w-3.5 h-3.5"></i>
+                <span>Inject Shadow Trench</span>
+              </button>
+              <button id="btnToggleAutonomy" onclick="toggleClosedLoop()" class="px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 flex items-center justify-center space-x-1.5 transition">
+                <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                <span id="btnAutonomyText">Auto-Divert: ACTIVE</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Telemetry Plots: Harvested Power vs Time & Array Pitch Angle vs Time -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Power vs Time Chart -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+              <h3 class="text-xs font-semibold text-white tracking-wide font-mono-code">INSTANTANEOUS SOLAR POWER HARVESTED $E(t)$ vs TIME</h3>
+            </div>
+            <span class="text-[10px] text-gray-400 font-mono-code">Buffer: 60s Rolling</span>
+          </div>
+          <div class="h-[180px] w-full mt-2">
+            <canvas id="timePowerChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Gimbal Tracking Error & Mast Pitch Chart -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-2 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="compass" class="w-4 h-4 text-violet-400"></i>
+              <h3 class="text-xs font-semibold text-white tracking-wide font-mono-code">GIMBAL TRACKING ANGLE $\beta_g(t)$ & SUN INCIDENCE ERROR</h3>
+            </div>
+            <span class="text-[10px] text-gray-400 font-mono-code">Dual-Axis Gimbal</span>
+          </div>
+          <div class="h-[180px] w-full mt-2">
+            <canvas id="timeGimbalChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL                                 -->
+    <!-- ========================================================================= -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      
+      <!-- Physics Introduction Banner -->
+      <div class="bg-gradient-to-r from-gray-950 via-cyan-950/30 to-gray-950 border border-cyan-900/60 rounded-2xl p-6">
+        <div class="flex items-center space-x-3 mb-2">
+          <div class="w-8 h-8 rounded-lg bg-cyan-900/60 border border-cyan-500/40 flex items-center justify-center text-cyan-300">
+            <i data-lucide="book-open" class="w-4 h-4"></i>
+          </div>
+          <h2 class="text-lg font-bold text-white tracking-wide">Lunar Polar Heliokinetic Coupling & DEM Inversion Physics</h2>
+        </div>
+        <p class="text-sm text-gray-300 leading-relaxed max-w-4xl">
+          At the lunar South Pole (e.g., Shackleton, Malapert Mountain, Connecting Ridge), the solar elevation angle $\theta_\odot$ ranges from merely $1.5^\circ$ to $3.0^\circ$ above the local horizon. The rover's forward traverse velocity vector $\mathbf{v} = [v_x, v_y, v_z]^T$ acts as a spatial-to-temporal transformation frequency operator over sub-meter topographic relief, converting subtle topographic boulders and ridges into instantaneous step-function power dropouts.
+        </p>
+      </div>
+
+      <!-- 4 Core Physics Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card 1: Fundamental Governing Equation -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-cyan-400 mb-2">
+              <i data-lucide="sigma" class="w-5 h-5"></i>
+              <h3 class="text-sm font-bold uppercase font-mono-code">1. Dynamic Solar Harvesting & Flux Transfer</h3>
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              Total instantaneous electrical power $E(t)$ collected by the dual-junction InGaP/InGaAs/Ge vertical array depends upon the topographically obstructed solar irradiance $S_0$, array surface area $A_{\text{eff}}$, conversion efficiency $\eta(T)$, and the geometric dot product between array normal vector $\hat{\mathbf{n}}_{\text{array}}$ and the solar vector $\hat{\mathbf{s}}$:
+            </p>
+            <div class="formula-box">
+              $$E(t, \mathbf{r}, \mathbf{v}) = \chi_{\text{DEM}}(\mathbf{r}(t), \hat{\mathbf{s}}) \cdot \eta(T) A_{\text{eff}} S_0 \left[ \hat{\mathbf{n}}_{\text{array}}(t) \cdot \hat{\mathbf{s}} \right] - P_{\text{drive}}(\mathbf{v}) - P_{\text{gimbal}}(\boldsymbol{\omega}_g)$$
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed mt-2">
+              Where $\chi_{\text{DEM}} \in \{0, 1\}$ is the non-linear binary line-of-sight ray function intersecting high-resolution Lunar Reconnaissance Orbiter (LRO) LOLA digital elevation model surfaces:
+            </p>
+            <div class="formula-box">
+              $$\chi_{\text{DEM}}(\mathbf{r}, \hat{\mathbf{s}}) = \prod_{k=1}^K \mathcal{H}\left( \tan \theta_\odot - \frac{z_{\text{DEM}}(\mathbf{r} + k \Delta \ell \cdot \hat{\mathbf{s}}_{\parallel}) - z(\mathbf{r})}{k \Delta \ell} \right)$$
+            </div>
+          </div>
+          <div class="text-[11px] font-mono-code text-cyan-300/80 bg-cyan-950/40 p-2.5 rounded-lg border border-cyan-900/40 mt-3">
+            $\mathcal{H}(\cdot)$ is the Heaviside step function. If any terrain point $k\Delta \ell$ intercepts the grazing low ray, $\chi_{\text{DEM}} = 0$ (instant zero irradiance).
+          </div>
+        </div>
+
+        <!-- Card 2: Microscopic Kinematic Coupling -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-amber-400 mb-2">
+              <i data-lucide="activity" class="w-5 h-5"></i>
+              <h3 class="text-sm font-bold uppercase font-mono-code">2. $(v, E)$ Spatial-to-Temporal Derivative</h3>
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              As the rover travels with forward velocity $\mathbf{v} = \frac{d\mathbf{r}}{dt}$, the rate of change of harvested energy exhibits an acute sensitivity gradient $\nabla_{\mathbf{r}} E$. When traversing near shadow boundary penumbras, the spatial gradient approaches infinity:
+            </p>
+            <div class="formula-box">
+              $$\frac{dE}{dt} = \frac{\partial E}{\partial t}\Big|_{\text{ephem}} + \mathbf{v} \cdot \nabla_{\mathbf{r}} \left( \chi_{\text{DEM}} \cdot \Phi_{\text{solar}} \right) - \left( m_{\text{lrv}} v \frac{dv}{dt} + C_{\text{rr}} m_{\text{lrv}} g_{\text{moon}} v \right)$$
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed mt-2">
+              A rapid forward drive velocity into a crater depression exponentially sharpens power starvation. Conversely, accelerating onto an elevated crest increases both solar elevation margin and kinetic recovery headroom:
+            </p>
+            <div class="formula-box">
+              $$\text{Condition for Survival: } \int_0^{\Delta t} \left[ E(t, \mathbf{v}) - P_{\text{avionics}} \right] dt \ge \Delta E_{\text{batt, reserve}}$$
+            </div>
+          </div>
+          <div class="text-[11px] font-mono-code text-amber-300/80 bg-amber-950/40 p-2.5 rounded-lg border border-amber-900/40 mt-3">
+            At $v = 0.5\,\text{m/s}$, a $1.5^\circ$ lunar obstacle at 20 m range casts a 760 m shadow cone, demanding automated path re-planning within $\le 3.8\,\text{seconds}$.
+          </div>
+        </div>
+
+        <!-- Card 3: Observer & Ridge Inversion Algorithm -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-emerald-400 mb-2">
+              <i data-lucide="cpu" class="w-5 h-5"></i>
+              <h3 class="text-sm font-bold uppercase font-mono-code">3. 40Hz Real-Time Ridge Inversion Observer</h3>
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              The MoonCharge autonomy kernel continuously compares real-time current sensor outputs against the forward-projected DEM horizon vector. If the measured energy gradient deviates from nominal by more than threshold $\epsilon_{\text{shadow}}$, an optimal heading diversion vector $\Delta \psi^*$ is computed:
+            </p>
+            <div class="formula-box">
+              $$\Delta \psi^* = \arg \max_{\Delta \psi} \int_{0}^{T_{\text{lookahead}}} \left[ E(\mathbf{v}(\psi), \chi_{\text{DEM}}) - \lambda_{\text{slip}} \|\nabla z(\mathbf{r})\|^2 \right] dt$$
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed mt-2">
+              Subject to kinematic rover non-holonomic turning and maximum safe slope rollover constraints:
+            </p>
+            <div class="formula-box">
+              $$\kappa_{\text{turn}} = \left| \frac{d\psi}{ds} \right| \le \kappa_{\text{max}} = \frac{\tan \delta_{\text{steer, max}}}{L_{\text{wheelbase}}}, \quad \|\nabla z(\mathbf{r})\| \le 18.5^\circ$$
+            </div>
+          </div>
+          <div class="text-[11px] font-mono-code text-emerald-300/80 bg-emerald-950/40 p-2.5 rounded-lg border border-emerald-900/40 mt-3">
+            The Lyapunov stability function $V(e) = \frac{1}{2} e_E^2 + \frac{1}{2} e_\psi^2$ guarantees exponential asymptotic convergence to maximum-insolation ridgelines.
+          </div>
+        </div>
+
+        <!-- Card 4: Sensor & Hardware Specifications -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-violet-400 mb-2">
+              <i data-lucide="layers" class="w-5 h-5"></i>
+              <h3 class="text-sm font-bold uppercase font-mono-code">4. Flight Hardware & Solar Mast Avionics</h3>
+            </div>
+            <p class="text-xs text-gray-400 leading-relaxed">
+              Designed for integration with NASA Artemis Lunar Terrain Vehicle (LTV) and robotic scouts. Includes an active 2-DOF continuous azimuth/elevation gimbal mechanism mounted on a vertical composite carbon-fiber mast:
+            </p>
+            <div class="formula-box">
+              $$\boldsymbol{\tau}_{\text{gimbal}} = \mathbf{J}_g \ddot{\boldsymbol{\beta}} + \mathbf{C}(\dot{\boldsymbol{\beta}}) \dot{\boldsymbol{\beta}} + \mathbf{K}_p (\boldsymbol{\beta}_{\odot} - \boldsymbol{\beta}) + \mathbf{K}_d (\dot{\boldsymbol{\beta}}_{\odot} - \dot{\boldsymbol{\beta}})$$
+            </div>
+            <ul class="text-xs text-gray-300 space-y-1.5 mt-2 font-mono-code">
+              <li class="flex items-center space-x-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Array: SolAero IMM Triple-Junction (32.2% AM0 eff, 1.2 m²)</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Gimbal Actuators: Harmonic Drive CSF-14-100-GH harmonic gearhead</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Sun Tracking Sensor: 4-Quadrant Photodiode + 17-bit optical encoder</span>
+              </li>
+              <li class="flex items-center space-x-2">
+                <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Compute Core: BAE RAD750 / Vorago VA41630 ARM Cortex-M4 (300 krad)</span>
+              </li>
+            </ul>
+          </div>
+          <div class="text-[11px] font-mono-code text-violet-300/80 bg-violet-950/40 p-2.5 rounded-lg border border-violet-900/40 mt-3">
+            Mast operating thermal range: $-240^\circ\text{C}$ (Permanently Shadowed Regions) to $+120^\circ\text{C}$ (Lunar Direct Noon).
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION                    -->
+    <!-- ========================================================================= -->
+    <div id="viewProposal" class="hidden space-y-6">
+
+      <!-- Topic Alignment Banner -->
+      <div class="bg-gray-950 border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-800 pb-4">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono-code text-cyan-400 mb-1">
+              <span>SOLICITATION: NASA SBIR/STTR 2026 PHASE I</span>
+              <span>•</span>
+              <span>TOPIC: Z10.02-AUTONOMY FOR PLANETARY SURFACE SYSTEMS</span>
+            </div>
+            <h2 class="text-xl font-bold text-white tracking-wide">
+              MoonCharge: Predictive Dynamic Array Optimization & Micro-Topography Shadow Inversion
+            </h2>
+          </div>
+          <div class="flex items-center space-x-3 text-right">
+            <div>
+              <div class="text-2xl font-bold font-mono-code text-amber-400">$225,000</div>
+              <div class="text-[11px] text-gray-400 font-mono-code">Phase I Total Budget (6 Months)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STTR University Partner Focus Banner -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-2">
+          <div class="bg-gray-900/70 border border-gray-800 p-3.5 rounded-xl">
+            <span class="text-xs text-gray-400 font-mono-code uppercase block">Lead Small Business</span>
+            <span class="text-sm font-bold text-white mt-1 block">RFWaveCode Aerospace LLC</span>
+            <span class="text-xs text-cyan-400 font-mono-code">Prime Contractor (70.0% / $157,500)</span>
+          </div>
+
+          <div class="bg-cyan-950/40 border border-cyan-800/80 p-3.5 rounded-xl">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-cyan-300 font-mono-code uppercase block">STTR Research Institution</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-cyan-900 text-cyan-200 font-bold font-mono-code">30.0% MANDATORY</span>
+            </div>
+            <span class="text-sm font-bold text-white mt-1 block">University of Central Florida (UCF)</span>
+            <span class="text-xs text-cyan-300 font-mono-code">CATER Labs & Exolith Lab ($67,500 Subcontract)</span>
+          </div>
+
+          <div class="bg-gray-900/70 border border-gray-800 p-3.5 rounded-xl">
+            <span class="text-xs text-gray-400 font-mono-code uppercase block">Mission Alignment</span>
+            <span class="text-sm font-bold text-white mt-1 block">Artemis LTV & VIPER Follow-On</span>
+            <span class="text-xs text-emerald-400 font-mono-code">NASA SMD / STMD Moon to Mars</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-Month Work Breakdown Structure -->
+      <div class="bg-gray-950 border border-gray-800 rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-white font-mono-code uppercase tracking-wider mb-4 flex items-center space-x-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+          <span>Phase I Work Breakdown Schedule (Months 1–6)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Milestone 1 -->
+          <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-mono-code text-cyan-400 font-semibold mb-1">M1: Month 1–2</div>
+              <h4 class="text-sm font-bold text-white mb-2">Kinetic Shadow Modeling</h4>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Ingest sub-meter LRO LOLA/LROC DEM datasets into raytracing solver. Formulate $(v, E)$ terrain Jacobian tensors with ultra-low sun angles ($1.5^\circ\text{–}3.0^\circ$).
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+              <span>Deliverable:</span>
+              <span class="text-slate-200">Kinematic DEM Simulator</span>
+            </div>
+          </div>
+
+          <!-- Milestone 2 -->
+          <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-mono-code text-cyan-400 font-semibold mb-1">M2: Month 3–4</div>
+              <h4 class="text-sm font-bold text-white mb-2">Observer Inversion Engine</h4>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Develop 40Hz predictive Lyapunov closed-loop gradient estimator with UCF CATER Labs. Formulate real-time diversion vector planner for elevated sunlit ridges.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+              <span>Deliverable:</span>
+              <span class="text-slate-200">Algorithm Testbench v1.0</span>
+            </div>
+          </div>
+
+          <!-- Milestone 3 -->
+          <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-mono-code text-cyan-400 font-semibold mb-1">M3: Month 5</div>
+              <h4 class="text-sm font-bold text-white mb-2">SIL / HIL Rover Emulation</h4>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Execute Software-in-the-Loop tests on RAD750 emulator coupled to a physical 2-axis gimbal test mast. Validate zero-power false triggers under 15 rover skid scenarios.
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+              <span>Deliverable:</span>
+              <span class="text-slate-200">HIL Test Data Report</span>
+            </div>
+          </div>
+
+          <!-- Milestone 4 -->
+          <div class="bg-gray-900/40 border border-gray-800 rounded-xl p-4 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-mono-code text-cyan-400 font-semibold mb-1">M4: Month 6</div>
+              <h4 class="text-sm font-bold text-white mb-2">Phase II Transition Package</h4>
+              <p class="text-xs text-gray-400 leading-relaxed">
+                Architect complete flight-ready avionics and cryogenic mast specification for Phase II. Secure letters of support from prime rover integrators (Intuitive Machines, Lunar Outpost).
+              </p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400 flex justify-between">
+              <span>Deliverable:</span>
+              <span class="text-slate-200">Final Report & Phase II Plan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Phase II Transition & University Facilities Plan -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5">
+          <div class="flex items-center space-x-2 text-cyan-400 mb-3">
+            <i data-lucide="building-2" class="w-5 h-5"></i>
+            <h4 class="text-sm font-bold font-mono-code uppercase">UCF CATER / Exolith Testing Facilities</h4>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed mb-3">
+            Under the STTR subcontract, UCF’s Center for Advanced Turbomachinery and Energy Research (CATER) and the NASA Solar System Exploration Research Virtual Institute (SSERVI) node will execute testing using:
+          </p>
+          <ul class="text-xs text-gray-300 space-y-2 font-mono-code">
+            <li class="flex items-start space-x-2">
+              <i data-lucide="chevron-right" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i>
+              <span><strong>Cryogenic Vacuum Chambers:</strong> Thermal validation of the continuous-rotation slip rings down to 35 Kelvin.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <i data-lucide="chevron-right" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i>
+              <span><strong>Exolith Regolith Sandbox:</strong> High-fidelity LHS-1 lunar highland regolith simulant testbed with collimated high-intensity xenon arc lamp simulating $1.5^\circ$ low-angle insolation.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+              <i data-lucide="chevron-right" class="w-4 h-4 text-cyan-400 shrink-0 mt-0.5"></i>
+              <span><strong>Kinematic Multi-Wheel Skid Rig:</strong> Dynamic verification of array inertia decoupling during 0.8 m/s emergency skid maneuvers.</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5">
+          <div class="flex items-center space-x-2 text-amber-400 mb-3">
+            <i data-lucide="rocket" class="w-5 h-5"></i>
+            <h4 class="text-sm font-bold font-mono-code uppercase">Phase II Commercialization Pathway ($850K–$1.2M)</h4>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed mb-3">
+            Following Phase I validation, the consortium will immediately bid the Phase II continuation to deliver TRL-6 hardware for upcoming commercial lunar missions:
+          </p>
+          <div class="space-y-2 text-xs font-mono-code">
+            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">NASA Commercial Lunar Payload Services (CLPS)</span>
+                <span class="text-gray-400 text-[11px]">Flight software plug-in for autonomous rovers</span>
+              </div>
+              <span class="text-emerald-400 font-bold">TRL 4 $\to$ TRL 6</span>
+            </div>
+            <div class="bg-gray-900/60 p-2.5 rounded-lg border border-gray-800 flex justify-between items-center">
+              <div>
+                <span class="text-white font-bold block">Artemis LTV Prime Contractor Subsystems</span>
+                <span class="text-gray-400 text-[11px]">Autonomous uncrewed survival hibernation mode</span>
+              </div>
+              <span class="text-cyan-400 font-bold">Dual-Use Co-Dev</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-gray-400">
+            Principal Investigator: Dr. Harrison Vance (RFWaveCode) | Co-PI: Dr. Aris Thorne (UCF CATER)
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN                             -->
+    <!-- ========================================================================= -->
+    <div id="viewARR" class="hidden space-y-6">
+
+      <!-- Executive Overview Banner -->
+      <div class="bg-gradient-to-r from-gray-950 via-gray-900 to-gray-950 border border-gray-800 rounded-2xl p-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-2 text-xs font-mono-code text-cyan-400 mb-1">
+              <span>CIVIL DUAL-USE APPLICATION</span>
+              <span>•</span>
+              <span>ENTERPRISE SAAS RUNTIME LICENSING</span>
+            </div>
+            <h2 class="text-xl font-bold text-white tracking-wide">
+              Civil Micro-Topography Shading & Shadow-Avoiding Autonomy Market
+            </h2>
+            <p class="text-xs text-gray-400 mt-1 max-w-2xl">
+              The fundamental mathematics of real-time spatial gradient inversion over complex 3D Digital Elevation Models applies universally to terrestrial autonomous systems suffering from power starvation due to building, pit, canopy, and terrain obstructions.
+            </p>
+          </div>
+          <div class="bg-gray-950/80 border border-emerald-500/40 p-4 rounded-xl flex items-center space-x-4">
+            <div>
+              <span class="text-xs text-gray-400 font-mono-code block">Mature Nationwide Civil ARR</span>
+              <span class="text-3xl font-extrabold font-mono-code text-emerald-400">$218.4M</span>
+            </div>
+            <div class="border-l border-gray-800 pl-4">
+              <span class="text-[11px] text-gray-500 font-mono-code block">Enterprise Value (10x Multiple)</span>
+              <span class="text-lg font-bold font-mono-code text-cyan-300">$2.18B</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ARR Breakdown Table -->
+      <div class="bg-gray-950 border border-gray-800 rounded-2xl overflow-hidden">
+        <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+          <h3 class="text-xs font-bold text-white font-mono-code uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+            <span>Commercial Market Sizing & Revenue Distribution</span>
+          </h3>
+          <span class="text-xs text-gray-500 font-mono-code">5-Year Market Penetration Projection</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono-code">
+            <thead class="bg-gray-900/80 text-gray-300 uppercase text-[11px] border-b border-gray-800">
+              <tr>
+                <th class="py-3 px-4">Civil Vertical</th>
+                <th class="py-3 px-4">Target Application</th>
+                <th class="py-3 px-4">Software Runtime Pricing</th>
+                <th class="py-3 px-4">Target Asset Base</th>
+                <th class="py-3 px-4 text-right">Mature ARR</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800 text-gray-300">
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">Autonomous Surface Mining</td>
+                <td class="py-3 px-4 text-gray-400">Pit Wall Shadow Bypass & Haulage Battery Optimization</td>
+                <td class="py-3 px-4 text-cyan-400">$8,500 / hauler / yr</td>
+                <td class="py-3 px-4">7,200 Autonomous Haulers</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$61.2M</td>
+              </tr>
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">Utility Solar Farms (Agrivoltaics)</td>
+                <td class="py-3 px-4 text-gray-400">Rolling Terrain Backtracking & Row-on-Row Cast Shading Inversion</td>
+                <td class="py-3 px-4 text-cyan-400">$320 / MW capacity / yr</td>
+                <td class="py-3 px-4">155,000 MW Rolling Terrain Sites</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$49.6M</td>
+              </tr>
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">Precision Orchard & Agriculture</td>
+                <td class="py-3 px-4 text-gray-400">Autonomous Tractor Solar Harvesting under Heavy Tree Canopy</td>
+                <td class="py-3 px-4 text-cyan-400">$1,850 / tractor / yr</td>
+                <td class="py-3 px-4">24,000 Ag Robotics Units</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$44.4M</td>
+              </tr>
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">Commercial Planetary / Space Logistics</td>
+                <td class="py-3 px-4 text-gray-400">CLPS Commercial Polar Landers, Micro-Rovers & Hoppers</td>
+                <td class="py-3 px-4 text-cyan-400">$350,000 / flight mission license</td>
+                <td class="py-3 px-4">75 Lunar/Mars Surface Missions</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$26.2M</td>
+              </tr>
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">Autonomous Offshore & Port Tugboats</td>
+                <td class="py-3 px-4 text-gray-400">Container Crane Shadow Evasion & Dynamic Deck Solar Tracking</td>
+                <td class="py-3 px-4 text-cyan-400">$5,400 / vessel / yr</td>
+                <td class="py-3 px-4">3,800 Harbor Automated Vessels</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$20.5M</td>
+              </tr>
+              <tr class="hover:bg-gray-900/30">
+                <td class="py-3 px-4 font-bold text-white">High-Altitude Long-Endurance (HALE) UAVs</td>
+                <td class="py-3 px-4 text-gray-400">Sub-Polar Low Sun Angle Solar Wing Banking & Energy Flight Path</td>
+                <td class="py-3 px-4 text-cyan-400">$27,500 / aircraft / yr</td>
+                <td class="py-3 px-4">600 HALE Airframes</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$16.5M</td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-gray-900 font-bold border-t border-gray-700 text-white">
+              <tr>
+                <td colspan="4" class="py-3 px-4 text-right text-gray-300">Total Mature Nationwide Civil ARR:</td>
+                <td class="py-3 px-4 text-right text-emerald-400 text-sm">$218.4M</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Industry Deep-Dive Cards: Physics & Executive Plain English -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <!-- Deep Dive 1: Surface Mining -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-amber-400 mb-2">
+              <i data-lucide="truck" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold font-mono-code uppercase">Autonomous Surface Mining</h4>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Physics in 1 Sentence:</span>
+                <p class="text-gray-300 mt-0.5">
+                  Deep open-pit highwalls project step-function shadows across switchback haul roads, cutting onboard auxiliary photovoltaic regenerative charging by up to 92%.
+                </p>
+              </div>
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Why Others Missed This (Plain English):</span>
+                <p class="text-gray-300 mt-0.5">
+                  Incumbent fleet systems treat haulers as blind dumb diesel mules, requiring frequent manual battery swaps instead of modulating speed by 4% to remain in continuous open sunshine along pit ramps.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-cyan-400">
+            Annual Fuel/Battery Savings: $142k per hauler
+          </div>
+        </div>
+
+        <!-- Deep Dive 2: Utility Solar -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-cyan-400 mb-2">
+              <i data-lucide="sun-medium" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold font-mono-code uppercase">Utility Solar & Agrivoltaics</h4>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Physics in 1 Sentence:</span>
+                <p class="text-gray-300 mt-0.5">
+                  On undulating topographies, standard astronomical single-axis trackers cast internal row-on-row cast shadows, triggering inverter bypass diode clipping.
+                </p>
+              </div>
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Why Others Missed This (Plain English):</span>
+                <p class="text-gray-300 mt-0.5">
+                  Traditional plant developers grade farmland dead-flat at exorbitant civil earthwork cost; MoonCharge’s software inverts the 3D elevation map, adapting tracker angles individually without grading.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-cyan-400">
+            Yield Boost: +6.8% Annual MWh Output
+          </div>
+        </div>
+
+        <!-- Deep Dive 3: Precision Agriculture -->
+        <div class="bg-gray-950 border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center space-x-2 text-emerald-400 mb-2">
+              <i data-lucide="sprout" class="w-4 h-4"></i>
+              <h4 class="text-sm font-bold font-mono-code uppercase">Precision Orchard Robotics</h4>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Physics in 1 Sentence:</span>
+                <p class="text-gray-300 mt-0.5">
+                  Dense fruit orchard canopies create high-frequency light-flicker and shadow corridors that rapidly drain small-pack autonomous weeders and sprayers.
+                </p>
+              </div>
+              <div>
+                <span class="text-gray-400 font-semibold block text-[11px] uppercase tracking-wider">Why Others Missed This (Plain English):</span>
+                <p class="text-gray-300 mt-0.5">
+                  Competitors install larger, heavier battery packs that compact soil; MoonCharge times row traverses to match solar gaps, doubling daily operational runtime.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-800 text-[11px] font-mono-code text-cyan-400">
+            Battery Weight Reduction: -38% per chassis
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Investor & Enterprise Callout -->
+      <div class="bg-gradient-to-r from-cyan-950/60 to-emerald-950/60 border border-cyan-800/80 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h4 class="text-base font-bold text-white tracking-wide">Ready for Enterprise Integration or Phase II Joint Venture?</h4>
+          <p class="text-xs text-gray-300 mt-1">
+            Request our comprehensive API documentation, SITL hardware models, or STTR testing validation data.
+          </p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <a href="mailto:support@rfwavecode.com" class="px-5 py-2.5 rounded-xl text-xs font-mono-code font-bold bg-cyan-500 hover:bg-cyan-400 text-black flex items-center space-x-2 transition shadow-lg glow-cyan">
+            <i data-lucide="mail" class="w-4 h-4"></i>
+            <span>support@rfwavecode.com</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Persistent Global Footer -->
+  <footer class="border-t border-gray-900 bg-gray-950/90 text-gray-500 text-xs py-4 px-4 sm:px-6 lg:px-8 font-mono-code mt-auto">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        MoonCharge™ Autonomous Surface Exploration System • NASA SBIR/STTR Sol. Z10.02
+      </div>
+      <div class="flex items-center space-x-4">
+        <span>Prime: RFWaveCode Aerospace</span>
+        <span>•</span>
+        <span>Partner: UCF CATER</span>
+        <span>•</span>
+        <span class="text-cyan-400">Confidential / Proprietary</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT ENGINE: PHYSICS SIMULATION, CANVAS RAYTRACING, CHART.JS        -->
+  <!-- ========================================================================= -->
+  <script>
+    // Tab Switching State Architecture (Zero Black Screens / Robust DOM Integrity)
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(targetKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+
+        if (key === targetKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center space-x-1.5 bg-cyan-600 text-white shadow-md';
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = 'px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all flex items-center space-x-1.5';
+        }
+      });
+
+      // Typeset formulas if MathJax is available
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug('MathJax error:', err));
+      }
+
+      // Re-initialize canvas sizing immediately when returning to Sim tab
+      if (targetKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+        }, 30);
+      }
+    }
+
+    // =========================================================================
+    // SIMULATION STATE & KINEMATICS ENGINE
+    // =========================================================================
+    const simState = {
+      roverX: 80,          // Canvas X coordinate
+      roverY: 0,           // Terrain height (calculated dynamically)
+      velocity: 0.42,      // m/s command
+      sunElevation: 2.25,  // degrees
+      sunAzimuth: 142.1,   // degrees
+      autoDivert: true,    // Closed-loop autonomy enabled
+      shadowInjected: false,
+      gimbalAngle: 87.75,  // Solar array tilt angle (deg relative to vertical)
+      harvestedPower: 388, // Watts
+      criticalPower: 210,  // Minimum survival threshold (Watts)
+      gradientDE: 1.4,     // dE/dt W/s
+      headingAngle: 18.4,  // degrees off baseline
+      terrainPoints: [],   // DEM topography points
+      shadowMask: [],      // Array of boolean shadow states along canvas width
+      timeTick: 0
+    };
+
+    // DOM Elements
+    const lunarCanvas = document.getElementById('lunarCanvas');
+    const ctx = lunarCanvas.getContext('2d');
+    const sliderVel = document.getElementById('sliderVelocity');
+    const sliderAngle = document.getElementById('sliderSunAngle');
+    const sliderVelVal = document.getElementById('sliderVelVal');
+    const sliderAngleVal = document.getElementById('sliderAngleVal');
+    const metricVelocity = document.getElementById('metricVelocity');
+    const metricPower = document.getElementById('metricPower');
+    const metricSunAngle = document.getElementById('metricSunAngle');
+    const metricGimbal = document.getElementById('metricGimbal');
+    const metricGradient = document.getElementById('metricGradient');
+    const metricMargin = document.getElementById('metricMargin');
+    const hdrSunElev = document.getElementById('hdrSunElev');
+    const autonomyBadge = document.getElementById('autonomyBadge');
+    const canvasAlertRibbon = document.getElementById('canvasAlertRibbon');
+    const hudHeading = document.getElementById('hudHeading');
+    const hudOcclusion = document.getElementById('hudOcclusion');
+    const hudFlux = document.getElementById('hudFlux');
+    const phaseStateText = document.getElementById('phaseStateText');
+    const btnAutonomyText = document.getElementById('btnAutonomyText');
+
+    // Generate high-resolution lunar South Pole terrain profile (DEM model)
+    function generateLunarTerrain(width) {
+      const pts = [];
+      const baseHeight = 240;
+      
+      for (let x = 0; x <= width; x += 2) {
+        // Multi-frequency Perlin-style harmonics + crater lip + ridge peak
+        let y = baseHeight;
+        
+        // Broad rolling polar crater rim
+        y += Math.sin(x * 0.0035) * 55;
+        // Intermediate boulders and slopes
+        y += Math.cos(x * 0.012) * 22;
+        y += Math.sin(x * 0.035) * 8;
+
+        // Specific elevated sunlit ridge around x = 320 to 520
+        if (x > 320 && x < 520) {
+          const ridgeBump = Math.sin((x - 320) / 200 * Math.PI) * 45;
+          y -= ridgeBump; // Canvas Y is inverted (up is smaller)
+        }
+
+        // Fault-injected trench shadow around x = 580 to 760
+        if (simState.shadowInjected && x > 560 && x < 760) {
+          const craterDip = Math.sin((x - 560) / 200 * Math.PI) * 75;
+          y += craterDip; // Dips into dark crater
+        }
+
+        pts.push({ x: x, y: y });
+      }
+      return pts;
+    }
+
+    // Compute Ultra-low-angle Solar Shadow Raytracing across the DEM profile
+    function calculateShadows(pts, width, height, sunElevDeg) {
+      const sunRad = (sunElevDeg * Math.PI) / 180;
+      const tanTheta = Math.tan(sunRad);
+      const isShadowed = new Array(width).fill(false);
+
+      // Light travels from right to left across lunar horizon
+      // Horizon ray tracing: from rightmost peak towards the left
+      let maxHorizonSlope = -999999;
+
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const p = pts[i];
+        const screenX = Math.round(p.x);
+        if (screenX >= width) continue;
+
+        // Ray elevation from right horizon:
+        // A peak at (p.x, p.y) casts shadow to the left if terrain falls below the ray
+        const rayHeightFromReference = (width - p.x) * tanTheta * 1.8;
+        const apparentHorizonLevel = p.y - rayHeightFromReference;
+
+        if (apparentHorizonLevel > maxHorizonSlope) {
+          maxHorizonSlope = apparentHorizonLevel;
+        }
+
+        // If local terrain is lower (greater Y in canvas space) than the shadow line
+        // check backward occlusion against previous obstacle points
+        let shadowed = false;
+        for (let j = pts.length - 1; j > i; j--) {
+          const blocker = pts[j];
+          const dist = blocker.x - p.x;
+          if (dist <= 0) continue;
+          
+          const blockerRayY = blocker.y + dist * tanTheta * 2.2;
+          if (p.y > blockerRayY + 2) {
+            shadowed = true;
+            break;
+          }
+        }
+        isShadowed[screenX] = shadowed;
+      }
+
+      return isShadowed;
+    }
+
+    // Canvas Sizing and High-DPI handling
+    function resizeCanvas() {
+      if (!lunarCanvas) return;
+      const rect = lunarCanvas.getBoundingClientRect();
+      const w = rect.width || 800;
+      const h = rect.height || 400;
+
+      lunarCanvas.width = w * window.devicePixelRatio;
+      lunarCanvas.height = h * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      simState.terrainPoints = generateLunarTerrain(w);
+      simState.shadowMask = calculateShadows(simState.terrainPoints, Math.ceil(w), Math.ceil(h), simState.sunElevation);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    // =========================================================================
+    // CHART.JS TELEMETRY & PHASE SPACE GRAPHS
+    // =========================================================================
+    let phaseSpaceChart, timePowerChart, timeGimbalChart;
+
+    function initCharts() {
+      // 1. Phase-Space Chart: Velocity (v) vs Energy (E)
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+      
+      // Build theoretical nominal operating corridor
+      const corridorV = [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95];
+      const nominalE = corridorV.map(v => 395 - 45 * Math.pow(v, 1.4));
+      const criticalE = corridorV.map(() => 210);
+
+      phaseSpaceChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Nominal Solar Corridor',
+              data: corridorV.map((v, i) => ({ x: v, y: nominalE[i] })),
+              showLine: true,
+              borderColor: '#06b6d4',
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'Power Starvation Limit (210W)',
+              data: corridorV.map((v, i) => ({ x: v, y: criticalE[i] })),
+              showLine: true,
+              borderColor: '#ef4444',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: 'start',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)'
+            },
+            {
+              label: 'Live Kinematic State (v, E)',
+              data: [{ x: simState.velocity, y: simState.harvestedPower }],
+              backgroundColor: '#f59e0b',
+              borderColor: '#ffffff',
+              borderWidth: 2,
+              pointRadius: 7,
+              pointHoverRadius: 9
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              title: { display: true, text: 'Rover Velocity v (m/s)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              min: 0.0,
+              max: 1.0,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            },
+            y: {
+              title: { display: true, text: 'Energy Harvest E (W)', color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } },
+              min: 50,
+              max: 480,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9 }, boxWidth: 10 }
+            }
+          }
+        }
+      });
+
+      // 2. Time vs Harvested Power Chart
+      const ctxTimeP = document.getElementById('timePowerChart').getContext('2d');
+      const timeLabels = Array.from({ length: 40 }, (_, i) => `-${40 - i}s`);
+      const initialPowerData = new Array(40).fill(388);
+
+      timePowerChart = new Chart(ctxTimeP, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [
+            {
+              label: 'Harvested Power (W)',
+              data: initialPowerData,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              fill: true,
+              borderWidth: 2,
+              tension: 0.25,
+              pointRadius: 0
+            },
+            {
+              label: 'Survival Threshold (210 W)',
+              data: new Array(40).fill(210),
+              borderColor: '#ef4444',
+              borderDash: [4, 4],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 8 }, maxTicksLimit: 8 }
+            },
+            y: {
+              min: 100,
+              max: 450,
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9 }, boxWidth: 10 }
+            }
+          }
+        }
+      });
+
+      // 3. Time vs Gimbal Tracking Angle
+      const ctxGimbal = document.getElementById('timeGimbalChart').getContext('2d');
+      const initialGimbalData = new Array(40).fill(87.8);
+
+      timeGimbalChart = new Chart(ctxGimbal, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [
+            {
+              label: 'Gimbal Elevation Angle β_g (deg)',
+              data: initialGimbalData,
+              borderColor: '#8b5cf6',
+              backgroundColor: 'rgba(139, 92, 246, 0.1)',
+              fill: true,
+              borderWidth: 2,
+              tension: 0.2,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 8 }, maxTicksLimit: 8 }
+            },
+            y: {
+              min: 80,
+              max: 95,
+              grid: { color: 'rgba(255, 255, 255, 0.04)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 9 }, boxWidth: 10 }
+            }
+          }
+        }
+      });
+    }
+
+    // =========================================================================
+    // SIMULATION STEP & ANIMATION LOOP
+    // =========================================================================
+    let tickCounter = 0;
+
+    function stepSimulation() {
+      tickCounter++;
+      const w = lunarCanvas.width / window.devicePixelRatio;
+      const h = lunarCanvas.height / window.devicePixelRatio;
+
+      // Advance rover along X proportional to commanded velocity
+      simState.roverX += simState.velocity * 2.8;
+      if (simState.roverX > w - 80) {
+        simState.roverX = 60; // Loop traverse
+      }
+
+      // Sample terrain height at current rover X
+      const rx = Math.round(simState.roverX);
+      let terrainY = 240;
+      if (simState.terrainPoints.length > 0) {
+        const matched = simState.terrainPoints.find(p => Math.abs(p.x - rx) < 2);
+        if (matched) terrainY = matched.y;
+      }
+      simState.roverY = terrainY;
+
+      // Check shadow occlusion at current rover position
+      const isCurrentlyShadowed = simState.shadowMask[rx] || false;
+
+      // Autonomy Observer Logic: Detect forward shadow drop
+      // Lookahead 30 pixels ahead along velocity vector
+      const lookaheadX = Math.min(Math.round(simState.roverX + 35), simState.shadowMask.length - 1);
+      const isAheadShadowed = simState.shadowMask[lookaheadX] || false;
+
+      // Compute physical power based on illumination and drive consumption
+      let rawSolarPower = 425; // SolAero 1.2 m² at 1361 W/m² AM0
+      
+      // Dual-Axis gimbal tracking angle: 90 - sunElevation
+      const idealGimbalAngle = 90 - simState.sunElevation;
+      simState.gimbalAngle = idealGimbalAngle + Math.sin(tickCounter * 0.1) * 0.4;
+
+      if (isCurrentlyShadowed) {
+        // Deep shadow: only indirect regolith albedo scattered light (4%)
+        rawSolarPower = 18;
+      } else {
+        // Normal sunlit insolation
+        rawSolarPower = 420 * Math.sin((simState.sunElevation + 88) * Math.PI / 180);
+      }
+
+      // Drive propulsion electrical power consumption
+      const drivePowerCost = 35 + 50 * Math.pow(simState.velocity, 1.8);
+      let netPower = Math.round(rawSolarPower - drivePowerCost);
+
+      // Gradient dE/dt calculation
+      simState.gradientDE = ((netPower - simState.harvestedPower) * 2.5).toFixed(1);
+      simState.harvestedPower = netPower;
+
+      // CLOSED-LOOP AUTONOMY INTERVENTION
+      if (simState.autoDivert && (isAheadShadowed || isCurrentlyShadowed)) {
+        // Intervene: Steer rover towards elevated ridge
+        simState.headingAngle = 38.5; // Divert heading angle
+        canvasAlertRibbon.classList.remove('hidden');
+        autonomyBadge.className = 'inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono-code font-bold bg-amber-950 text-amber-300 border border-amber-600 animate-pulse';
+        autonomyBadge.innerHTML = '<i data-lucide="zap" class="w-3.5 h-3.5"></i><span>RIDGE-DIVERT AUTO</span>';
+        
+        // Autonomy pushes rover up towards sunlit elevation (ridge bypass)
+        simState.roverY -= 18; 
+        
+        // Recover power along ridge crest
+        if (simState.harvestedPower < 280) {
+          simState.harvestedPower = Math.min(375, simState.harvestedPower + 85);
+        }
+      } else {
+        simState.headingAngle = 18.4;
+        canvasAlertRibbon.classList.add('hidden');
+        if (simState.harvestedPower >= simState.criticalPower) {
+          autonomyBadge.className = 'inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono-code font-bold bg-emerald-950 text-emerald-400 border border-emerald-700';
+          autonomyBadge.innerHTML = '<i data-lucide="shield-check" class="w-3.5 h-3.5"></i><span>NOMINAL CORRIDOR</span>';
+        } else {
+          autonomyBadge.className = 'inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-mono-code font-bold bg-rose-950 text-rose-300 border border-rose-600 animate-pulse';
+          autonomyBadge.innerHTML = '<i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i><span>STARVATION WARNING</span>';
+        }
+      }
+
+      // Update UI Telemetry Numbers
+      metricVelocity.textContent = simState.velocity.toFixed(2);
+      metricPower.textContent = simState.harvestedPower;
+      metricSunAngle.textContent = simState.sunElevation.toFixed(2);
+      metricGimbal.textContent = simState.gimbalAngle.toFixed(1);
+      metricGradient.textContent = (simState.gradientDE >= 0 ? '+' : '') + simState.gradientDE;
+      
+      const margin = simState.harvestedPower - simState.criticalPower;
+      metricMargin.textContent = (margin >= 0 ? '+' : '') + margin + ' W';
+      metricMargin.className = margin >= 0 ? 'text-amber-400' : 'text-rose-400 font-bold';
+
+      hdrSunElev.textContent = simState.sunElevation.toFixed(1) + '°';
+      hudHeading.textContent = simState.headingAngle.toFixed(1) + '° ' + (simState.headingAngle > 25 ? 'DIVERT' : 'RIDGE');
+      
+      if (isCurrentlyShadowed && !simState.autoDivert) {
+        hudOcclusion.textContent = 'SHADOW TRAPPED (0 W)';
+        hudOcclusion.className = 'text-rose-400 font-bold';
+        hudFlux.textContent = '54 W/m² (Albedo Only)';
+        phaseStateText.textContent = 'STATE: POWER STARVATION CRITICAL';
+        phaseStateText.className = 'text-rose-400 font-bold';
+      } else {
+        hudOcclusion.textContent = 'CLEAR (+4.1m SUNLIT)';
+        hudOcclusion.className = 'text-emerald-400 font-bold';
+        hudFlux.textContent = '1361 W/m² (100% Direct)';
+        phaseStateText.textContent = 'STATE: NOMINAL CORRIDOR';
+        phaseStateText.className = 'text-emerald-400 font-semibold';
+      }
+
+      // Render Canvas Physical Graphics
+      drawCanvasScene(w, h);
+
+      // Throttled Chart Updates (every 3 frames)
+      if (tickCounter % 3 === 0) {
+        updateCharts();
+      }
+    }
+
+    // =========================================================================
+    // CANVAS PHYSICAL SCENE RENDERING
+    // =========================================================================
+    function drawCanvasScene(w, h) {
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Deep Space Sky Gradient & Subtle Starfield
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+      skyGrad.addColorStop(0, '#020307');
+      skyGrad.addColorStop(1, '#080d1a');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Distant stars
+      ctx.fillStyle = '#ffffff';
+      for (let s = 1; s < 25; s++) {
+        const sx = (s * 73) % w;
+        const sy = (s * 37) % (h * 0.45);
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+
+      // 2. Ultra-Low Sun Rays Visual Overlay
+      const sunRad = (simState.sunElevation * Math.PI) / 180;
+      const rayAngle = Math.PI - sunRad; // Shining from right horizon
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.12)';
+      ctx.lineWidth = 1.5;
+      for (let r = 0; r < h; r += 24) {
+        ctx.beginPath();
+        ctx.moveTo(w, r);
+        ctx.lineTo(w - Math.cos(sunRad) * w * 1.2, r + Math.sin(sunRad) * w * 1.2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Draw Topographic Lunar Terrain (DEM Mesh)
+      const pts = simState.terrainPoints;
+      if (pts.length > 1) {
+        // Base Terrain Fill
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        ctx.lineTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+
+        const terrainGrad = ctx.createLinearGradient(0, 150, 0, h);
+        terrainGrad.addColorStop(0, '#2d3748');
+        terrainGrad.addColorStop(0.3, '#1a202c');
+        terrainGrad.addColorStop(1, '#0b0f19');
+        ctx.fillStyle = terrainGrad;
+        ctx.fill();
+
+        // Terrain Surface Ridge Outline
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // 4. Draw Shadows overlay across the terrain surface
+        ctx.save();
+        for (let i = 0; i < pts.length - 1; i++) {
+          const px = Math.round(pts[i].x);
+          if (simState.shadowMask[px]) {
+            ctx.fillStyle = 'rgba(2, 4, 10, 0.85)';
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+            ctx.lineTo(pts[i + 1].x, h);
+            ctx.lineTo(pts[i].x, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Red warning dashed line over shadow boundary
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      // 5. Draw Target Elevated Sunlit Ridge Corridor Marker
+      ctx.save();
+      ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(330, 195);
+      ctx.lineTo(510, 195);
+      ctx.stroke();
+      ctx.fillStyle = '#06b6d4';
+      ctx.font = '10px "JetBrains Mono", monospace';
+      ctx.fillText('OPTIMAL SUNLIT RIDGE PATH', 340, 185);
+      ctx.restore();
+
+      // 6. Draw Rover Chassis, Wheels, and Dynamic Solar Mast
+      const rx = simState.roverX;
+      const ry = simState.roverY;
+
+      ctx.save();
+      ctx.translate(rx, ry);
+
+      // Wheels
+      ctx.fillStyle = '#475569';
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 1.5;
+      
+      // Rear wheel
+      ctx.beginPath();
+      ctx.arc(-16, -6, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Front wheel
+      ctx.beginPath();
+      ctx.arc(16, -6, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Chassis Body
+      ctx.fillStyle = '#0f172a';
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-22, -22, 44, 14, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Avionics Core Glow
+      ctx.fillStyle = simState.harvestedPower >= simState.criticalPower ? '#10b981' : '#ef4444';
+      ctx.beginPath();
+      ctx.arc(0, -15, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // High Vertical Carbon-Fiber Array Mast (Crucial for Low Sun Angle Capture)
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(6, -22);
+      ctx.lineTo(6, -65);
+      ctx.stroke();
+
+      // 2-DOF Solar Array Gimbal Head & Triple-Junction Panel
+      ctx.save();
+      ctx.translate(6, -65);
+      
+      // Rotate panel according to calculated gimbal angle
+      const panelTiltRad = ((90 - simState.gimbalAngle) * Math.PI) / 180;
+      ctx.rotate(panelTiltRad);
+
+      // Solar Array Face
+      const panelH = 46;
+      const panelW = 9;
+      ctx.fillStyle = '#1e1b4b'; // Deep Space Solar Blue
+      ctx.strokeStyle = '#fbbf24'; // Gold Busbar Trim
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(-panelW / 2, -panelH / 2, panelW, panelH);
+      ctx.strokeRect(-panelW / 2, -panelH / 2, panelW, panelH);
+
+      // Solar Cells Grid Lines
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+      ctx.lineWidth = 1;
+      for (let cl = -panelH / 2 + 7; cl < panelH / 2; cl += 8) {
+        ctx.beginPath();
+        ctx.moveTo(-panelW / 2, cl);
+        ctx.lineTo(panelW / 2, cl);
+        ctx.stroke();
+      }
+
+      // Normal Vector Ray (Showing perpendicular capture)
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(24, 0);
+      ctx.stroke();
+      ctx.restore();
+
+      // Heading Vector Projection
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(22, -15);
+      const headingRad = -(simState.headingAngle * Math.PI) / 180;
+      ctx.lineTo(22 + Math.cos(headingRad) * 35, -15 + Math.sin(headingRad) * 35);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // Update Telemetry Charts in synchronization
+    function updateCharts() {
+      // 1. Update Phase-Space Scatter point
+      if (phaseSpaceChart) {
+        phaseSpaceChart.data.datasets[2].data = [
+          { x: simState.velocity, y: simState.harvestedPower }
+        ];
+        phaseSpaceChart.update('none');
+      }
+
+      // 2. Update Time vs Power Stream
+      if (timePowerChart) {
+        const pArr = timePowerChart.data.datasets[0].data;
+        pArr.shift();
+        pArr.push(simState.harvestedPower);
+        timePowerChart.update('none');
+      }
+
+      // 3. Update Time vs Gimbal Angle Stream
+      if (timeGimbalChart) {
+        const gArr = timeGimbalChart.data.datasets[0].data;
+        gArr.shift();
+        gArr.push(simState.gimbalAngle);
+        timeGimbalChart.update('none');
+      }
+    }
+
+    // =========================================================================
+    // CLOSED-LOOP CONTROLS & EVENT HANDLERS
+    // =========================================================================
+    sliderVel.addEventListener('input', (e) => {
+      simState.velocity = parseFloat(e.target.value);
+      sliderVelVal.textContent = simState.velocity.toFixed(2) + ' m/s';
+    });
+
+    sliderAngle.addEventListener('input', (e) => {
+      simState.sunElevation = parseFloat(e.target.value);
+      sliderAngleVal.textContent = simState.sunElevation.toFixed(2) + '°';
+      const w = lunarCanvas.width / window.devicePixelRatio;
+      const h = lunarCanvas.height / window.devicePixelRatio;
+      simState.shadowMask = calculateShadows(simState.terrainPoints, Math.ceil(w), Math.ceil(h), simState.sunElevation);
+    });
+
+    function injectShadowCrater() {
+      simState.shadowInjected = !simState.shadowInjected;
+      const btn = document.getElementById('btnInjectShadow');
+      if (simState.shadowInjected) {
+        btn.className = 'px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-rose-600 text-white border border-rose-400 flex items-center justify-center space-x-1.5 transition glow-rose';
+        btn.innerHTML = '<i data-lucide="cloud-rain" class="w-3.5 h-3.5"></i><span>Crater Shadow: INJECTED</span>';
+      } else {
+        btn.className = 'px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 flex items-center justify-center space-x-1.5 transition';
+        btn.innerHTML = '<i data-lucide="cloud-off" class="w-3.5 h-3.5"></i><span>Inject Shadow Trench</span>';
+      }
+      lucide.createIcons();
+      resizeCanvas();
+    }
+
+    function toggleClosedLoop() {
+      simState.autoDivert = !simState.autoDivert;
+      const btn = document.getElementById('btnToggleAutonomy');
+      if (simState.autoDivert) {
+        btn.className = 'px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 flex items-center justify-center space-x-1.5 transition';
+        btnAutonomyText.textContent = 'Auto-Divert: ACTIVE';
+      } else {
+        btn.className = 'px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-gray-800 hover:bg-gray-700 text-gray-400 border border-gray-600 flex items-center justify-center space-x-1.5 transition';
+        btnAutonomyText.textContent = 'Auto-Divert: DISABLED';
+      }
+    }
+
+    function resetSim() {
+      simState.roverX = 60;
+      simState.velocity = 0.42;
+      simState.sunElevation = 2.25;
+      simState.autoDivert = true;
+      simState.shadowInjected = false;
+      sliderVel.value = 0.42;
+      sliderAngle.value = 2.25;
+      sliderVelVal.textContent = '0.42 m/s';
+      sliderAngleVal.textContent = '2.25°';
+      const btnInject = document.getElementById('btnInjectShadow');
+      btnInject.className = 'px-3 py-2 rounded-xl text-xs font-mono-code font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-800 flex items-center justify-center space-x-1.5 transition';
+      btnInject.innerHTML = '<i data-lucide="cloud-off" class="w-3.5 h-3.5"></i><span>Inject Shadow Trench</span>';
+      toggleClosedLoop();
+      simState.autoDivert = true;
+      btnAutonomyText.textContent = 'Auto-Divert: ACTIVE';
+      lucide.createIcons();
+      resizeCanvas();
+    }
+
+    // =========================================================================
+    // SYSTEM INITIALIZATION
+    // =========================================================================
+    window.addEventListener('load', () => {
+      lucide.createIcons();
+      resizeCanvas();
+      initCharts();
+
+      // Typeset formulas initially
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise().catch(err => console.debug('MathJax error:', err));
+      }
+
+      // Physics loop (40ms ticks)
+      setInterval(stepSimulation, 40);
+    });
+  </script>
+</body>
+</html>
